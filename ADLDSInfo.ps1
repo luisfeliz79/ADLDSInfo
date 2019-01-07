@@ -76,7 +76,7 @@
   
 .NOTES
 
-  Version:        1.0.3
+  Version:        1.0.4
 
   Author:         Luis Feliz
 
@@ -103,6 +103,9 @@
     )
 
 
+# CHANGES
+# Fixed a bug that removed backslashes from path names. affected the -HTMLReport function.
+
 #region User Defined variables
  $UpdateCheck=60
  $FreeSpaceCheck=5
@@ -113,7 +116,7 @@
 
 #region Program Variables
 
-$ScriptVersion="1.0.3"
+$ScriptVersion="1.0.4"
 $global:Report=@() #Define an array 
 $global:RemoteReports=@{} #Define a hash table
 
@@ -748,9 +751,9 @@ Function CreateHTMLReport () {
 
     $HtmlReport="$header $SystemArea $CertificatesArea $DirectoryArea $ReplicationArea $OptFeatureArea $Footer"
     
-    $CurDir=$pwd -replace ":\\",":"
+    if ($pwd.tostring()[-1] -eq "\") {$Curdir=$PWD} else {$CurDir="$pwd\"}
     
-    $HtmlreportFile="$CurDir\$env:computername-$InstanceName-$(get-date -format 'MMddyyyy-hhmm').html"
+    $HtmlreportFile="$CurDir$env:computername-$InstanceName-$(get-date -format 'MMddyyyy-hhmm').html"
     $HtmlReport | out-file $HtmlreportFile
     "Report created at $HtmlreportFile"
 }

@@ -13,6 +13,13 @@ It will do the following:
 * It can do this for one Node or every replica server.
 * Output to command line or HTML report
 
+### Requirements
+
+* Run as Administrator
+* PowerShell Remoting (when using -AllNodes). This uses Firewall ports 5985.
+
+
+
 ### EXAMPLES:
 
 Example 1:  Show all instances in a node and their status

@@ -1,8 +1,7 @@
 # ADLDSInfo
-A PowerShell Script to document Microsoft Active Directory Lightweight Directory Service (AD LDS) Deployments
 
 ### DESCRIPTION
-A Script which allows you to document an AD LDS Environment.
+A PowerShell Script to document Microsoft Active Directory Lightweight Directory Service (AD LDS) Deployments
 
 It can do the following:
 
@@ -16,7 +15,7 @@ It can do the following:
 ### Requirements
 
 * Run as Administrator
-* PowerShell Remoting (when using -AllNodes). This uses Firewall ports 5985.
+* PowerShell Remoting (when using -AllNodes). PS Remoting uses firewall port 5985.
 
 
 

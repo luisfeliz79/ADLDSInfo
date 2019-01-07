@@ -73,4 +73,9 @@ Process the operation on all Replica nodes.
 -ShowInstances [<SwitchParameter>]
 Shows all instances in the current node.
 
+### Sample Screenshots
+
+![](https://github.com/luisfeliz79/ADLDSInfo/blob/master/ScreenShots/ShowInstances.PNG)
+![](https://github.com/luisfeliz79/ADLDSInfo/blob/master/ScreenShots/CommandLineReport.png)
+![](https://github.com/luisfeliz79/ADLDSInfo/blob/master/ScreenShots/HTMLReport.png)
 

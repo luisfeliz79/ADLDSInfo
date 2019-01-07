@@ -4,7 +4,7 @@ A PowerShell Script to document Microsoft Active Directory Lightweight Directory
 ### DESCRIPTION
 A Script which allows you to document an AD LDS Environment.
 
-It will do the following:
+It can do the following:
 
 * Get a listing of every AD LDS instance in a server, along with status and port numbers
 * Collect Server information

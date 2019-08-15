@@ -9,7 +9,6 @@ It can do the following:
 * Collect Server information
 * Collect Directory Information
 * Collect LDAPs Certificate information
-* It can do this for one Node or every replica server.
 * Output to command line or HTML report
 
 ### Requirements
@@ -32,10 +31,6 @@ Example 2:  Show information for Instance LFTEST
 Example 3:  Show information for Instance LFTEST and create an HTML Report
 
 	PS C:\> .\ADLDSInfo.ps1 -InstanceName LFTEST -HTMLReport
-
-Example 4:  Show information for Instance LFTEST, include all replica nodes, and create an HTML report
-
-	PS C:\> .\ADLDSInfo.ps1 -InstanceName LFTEST -AllNodes -HTMLReport
 
 
 
@@ -61,11 +56,6 @@ Skip the Windows Firewall, Windows Backup and Windows Activation tests.
 
 -SkipServerInfo [<SwitchParameter>]
 Skip all system related tests, only display Directory related info.
-
-
-
--AllNodes [<SwitchParameter>]
-Process the operation on all Replica nodes.
 
 
 

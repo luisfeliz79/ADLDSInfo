@@ -11,6 +11,8 @@ It can do the following:
 * Collect LDAPs Certificate information
 * Output to command line or HTML report
 
+Note: -AllNodes functionality temporarily broken, will fix soon!
+
 ### Requirements
 
 * Run as Administrator

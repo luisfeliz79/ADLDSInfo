@@ -18,7 +18,6 @@
         * Collect Server information
         * Collect Directory Information
         * Collect LDAPs Certificate information
-        * It can do this for one Node or every replica server.
         * Output to command line or HTML report
 
     EXAMPLES:
@@ -35,10 +34,7 @@
 
       PS C:\> .\ADLDSInfo.ps1 -InstanceName LFTEST -HTMLReport
 
-    Example 4:  Show information for Instance LFTEST, include all replica nodes, and create an HTML report
-
-      PS C:\> .\ADLDSInfo.ps1 -InstanceName LFTEST -AllNodes -HTMLReport
-
+    
 
 .PARAMETER InstanceName
 
@@ -47,10 +43,6 @@
 .PARAMETER ShowInstances
 
   Shows all instances in the current node.
-
-.PARAMETER AllNodes
-
-  Process the operation on all Replica nodes.
 
 .PARAMETER HTMLReport
 
@@ -76,11 +68,11 @@
   
 .NOTES
 
-  Version:        1.0.4
+  Version:        1.0.6
 
   Author:         Luis Feliz
 
-  Creation Date:  1/7/2019
+  Updated:        8/14/2019
 
   Purpose/Change: Initial script development
   
@@ -97,7 +89,7 @@
         [Switch]$HTMLReport,
         [Switch]$SkipExtendedTests,
         [Switch]$SkipServerInfo,
-        [Switch]$AllNodes,
+        [Switch]$AllInstances,
         [Switch]$ShowInstances
         
     )
@@ -116,9 +108,8 @@
 
 #region Program Variables
 
-$ScriptVersion="1.0.4"
-$global:Report=@() #Define an array 
-$global:RemoteReports=@{} #Define a hash table
+$ScriptVersion="1.0.6"
+
 
 
 
@@ -397,6 +388,50 @@ function Get-UserRightsGrantedToAccount {
     }
 } # Gets all user rights granted to an account
 
+Function OUReverser ($OUs) {
+
+$OUs | % {
+
+     $Nodes=$_ -split "," 
+     [System.Collections.ArrayList]$Reverse=@()
+     for ($i=-1;$i -ge ($nodes.count*-1);$i-=1){
+                    #$i
+                    $Reverse.add($Nodes[$i]) | out-null
+     }
+     $Reverse -join ","
+     
+}
+
+}
+Function TreeMaker ($OUs) {
+
+    $OUs=OUReverser -OUs $OUs
+
+    $Printed=@()
+    $TreeObject=""
+    
+    $OUs | % {
+
+        $Tabs=-1
+        $_ -split "," | % {
+        $Tabs++
+            
+           if ($Printed -notcontains $_) {
+
+            $TreeObject+= "$("..."*$Tabs)$_`n"
+            $Printed+=$_
+
+           }
+
+        }
+
+
+    }
+
+    $TreeObject
+
+} #end of Tree Maker
+
 
 function Test-Administrator  
 {  
@@ -434,11 +469,11 @@ Switch ($TestName)
 
 "SysInfo" {
           #System Information
-          $RAM=(Get-WmiObject -class "Win32_PhysicalMemory").Capacity/1024/1024/1024
+          $RAM=(Get-WmiObject -class "Win32_PhysicalMemory")[0].Capacity/1024/1024/1024
           $CPU=get-wmiobject win32_processor
           $OS=(Get-WmiObject Win32_OperatingSystem)
           $Uptime = (Get-Date) - ($os.ConvertToDateTime($os.lastbootuptime))
-          $LastUpdate= (gwmi win32_quickfixengineering |sort installedon -desc).InstalledON[0]
+          $LastUpdate= (gwmi win32_quickfixengineering |sort installedon -desc -ErrorAction SilentlyContinue).InstalledON[0]
           $LastUpdateNotes=if ($LastUpdate -le (get-date).AddDays($UpdateCheck*-1)) {"Last update was more than $UpdateCheck days ago"}
           $HDInfo = get-WmiObject win32_logicaldisk 
           $FreeSpace=$($HDInfo | % {"$($_.DeviceID) $([math]::round($_.FreeSpace/1024/1024/1024,1))GB" } ) -join "`n"
@@ -598,10 +633,22 @@ Switch ($TestName)
             WriteOutput -Header Sites -Output $Sites
             WriteOutput -Header SiteLinks -output $SiteLinks
             writeoutput -Header msDSOtherSettings -output $msDSOtherSettings
+
+        $OUStructures=@()
+        $AppParts | % {
+        
+                $OUs=Get-ADOrganizationalUnit -Filter * -server localhost:$PortLDAP -SearchBase $_ | % DistinguishedName
+                $OUStructures+=TreeMaker -OUs $OUs
+
+            }
+        writeoutput -Header OUTree -output $OUStructures
+
+
+
         } else { WriteError -Output "Your login account does not have administrative access to this AD LDS instance, skipping directory tests." }
 
    } else {
-    WriteError -Output "Either the $InstanceName service or the ADWS Service is not running, skipping Directory tests.   Start the services and re-run the script."
+    WriteError -Output "Either the $InstanceName service or the ADWS Service is not running, skipping Directory tests."
    }
 
 } # Performs the Directory tests
@@ -651,7 +698,17 @@ $Instances | foreach {
 
    $ConfigParameters=get-item "HKLM:\SYSTEM\CurrentControlSet\Services\$($_.Name)\Parameters"
    $PortLDAP=$ConfigParameters.getvalue("Port LDAP")
-   $PortLDAPS=$ConfigParameters.getvalue("Port SSL")
+   
+   $ConfigPart=""
+   $AppParts=""
+
+   if ($_.State -eq "Running") {
+   
+            $path=[adsi]"LDAP://localhost:$PortLDAP/RootDSE"
+            $ConfigPart=$path.configurationNamingContext
+            $AppParts=$path.namingContexts | where { $_ -notlike "*CN=Configuration*" }    
+    }
+
 
     $Results+=New-Object PSobject -Property ([ordered]@{
 
@@ -659,13 +716,13 @@ $Instances | foreach {
     "Name"=$_.Name
     "DisplayName"=$_.DisplayName
     "LDAPPort"=$PortLDAP
-    "LDAPSPort"=$PortLDAPS
     "ServiceAccount"=$_.StartName
-
+    "ConfigPart"=$ConfigPart
+    "AppParts"=$AppParts -join "; "
     }) 
 
 }
-    $results | ft
+    $results | ft -wrap
 
 } # Provides a nice listing of all the instances
 
@@ -686,7 +743,7 @@ Function CreateHTMLReport () {
 
     #Define templates
 
-    $Title="AD LDS Configuration report"
+    $Title="AD LDS Configuration report for $InstanceName"
     $Subtitle="Script Version $ScriptVersion"
 
     $Style=@" 
@@ -721,7 +778,7 @@ Function CreateHTMLReport () {
         }
     # Create the Basic Directory info area
 
-        $Modules="HostName","InstanceName","Administrators","ADWSServiceState","AppParts","ConfigPart","DSADBPath","LogDBPath","NamingMaster","PortLDAP","PortSSL","SchemaMaster","ServiceAccount","ServiceState"
+        $Modules="HostName","InstanceName","Administrators","ADWSServiceState","AppParts","ConfigPart","DSADBPath","LogDBPath","NamingMaster","PortLDAP","PortSSL","SchemaMaster","ServiceAccount","ServiceState","OUTree"
         $AreaTitle="@Instance Information"
         $DirectoryArea=CreateHTMLReportArea -Modules $Modules -Title $AreaTitle 
 
@@ -786,21 +843,8 @@ $HTML
 
 }
 
+function ProcessRequest ($InstanceName) {
 
-#endregion
-
-
-#region Begin Main section
-
-
-
-
-
-CheckRequirements
-
-if ($ShowInstances) {
-"Available Instances:";ShowAvailableInstances;break
-}
 
 if ($InstanceName) {
 
@@ -836,6 +880,7 @@ if ($InstanceName) {
     $FormatEnumerationLimit=0
    
     #Adds the local report to RemoteReports
+        
         $RemoteReports.add([System.Net.Dns]::GetHostByName($env:computerName).hostname,$Report)
    
     #Includes data from all ReplicaPartners
@@ -863,24 +908,58 @@ if ($InstanceName) {
        
             $RemoteReports.keys | foreach {"Report for $_`n-----------------------------";$RemoteReports[$_] | where Notes -ne $null | fl Property,Value,Notes}
         
-    Break
+    
     }
     
     #use this to get an unmodified powershell object out of the script
     If ($ReturnObjectOnly) {
         return $Report
-    break
+    
     }
     
     #creates a pretty html based report
     If ($HtmlReport) {
         CreateHTMLReport
-    Break
-    }
-
+        
+    } else {
 
     #default action
     #$Report  | ft -Property @{label="Property";Expression={$_.Property};Width=20;Alignment="Left"},@{label="Value";Expression={$_.Value};Width=80;Alignment="Left"},@{label="Notes";Expression={$_.Notes};Width=40;Alignment="Left"} -wrap
     $RemoteReports.keys | foreach {$RemoteReports[$_] | ft -Property @{label="Property";Expression={$_.Property};Width=20;Alignment="Left"},@{label="Value";Expression={$_.Value};Width=80;Alignment="Left"},@{label="Notes";Expression={$_.Notes};Width=40;Alignment="Left"} -wrap }
     
+    }
+
+} #end instances
+
+
+
+
+
+
+#endregion
+
+
+#region Begin Main section
+
+
+
+
+
+CheckRequirements
+
+if ($ShowInstances) {
+"Available Instances:";ShowAvailableInstances;break
+}
+
+if ($AllInstances) { $Instances=(Get-WmiObject -Class win32_service | where name -like ADAM_*).Name } else {$Instances=$InstanceName}
+
+
+$Instances | % {
+
+    $global:Report=@() #Define an array 
+    $global:RemoteReports=@{} #Define a hash table
+    Write-host "Working on $_"
+    ProcessRequest -InstanceName $_
+
+}
 #endregion

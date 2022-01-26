@@ -68,14 +68,13 @@
   
 .NOTES
 
-  Version:        1.0.6
+  Version:        1.0.7
 
   Author:         Luis Feliz
 
-  Updated:        8/14/2019
+  Updated:        8/14/2022
 
-  Purpose/Change: Initial script development
-  
+   
 
 #>
 
@@ -108,7 +107,7 @@
 
 #region Program Variables
 
-$ScriptVersion="1.0.6"
+$ScriptVersion="1.0.7"
 
 
 
@@ -469,7 +468,7 @@ Switch ($TestName)
 
 "SysInfo" {
           #System Information
-          $RAM=(Get-WmiObject -class "Win32_PhysicalMemory")[0].Capacity/1024/1024/1024
+          $RAM=((Get-WmiObject -class "Win32_PhysicalMemory") | Measure-Object -Property Capacity -Sum).Sum/1024/1024/1024
           $CPU=get-wmiobject win32_processor
           $OS=(Get-WmiObject Win32_OperatingSystem)
           $Uptime = (Get-Date) - ($os.ConvertToDateTime($os.lastbootuptime))
@@ -622,6 +621,10 @@ Switch ($TestName)
 	                    $Administrators="Error getting group membership"
 	                    }
 
+
+		        $ReplSumcmdOutput=((repadmin /replsum localhost:$PortLDAP) -split '`n') -join "<br>"
+        		$ShowReplcmdOutput=((repadmin /showrepl localhost:$PortLDAP) -split '`n') -join "<br>" 
+
             WriteOutput -Header Administrators -Output $Administrators
             WriteOutput -Header AppParts -Output $AppParts
             WriteOutput -Header ConfigPart -Output $ConfigPart
@@ -633,6 +636,9 @@ Switch ($TestName)
             WriteOutput -Header Sites -Output $Sites
             WriteOutput -Header SiteLinks -output $SiteLinks
             writeoutput -Header msDSOtherSettings -output $msDSOtherSettings
+            writeoutput -Header replsum -output $ReplSumcmdOutput
+            writeoutput -Header showrepl -output $ShowReplcmdOutput
+
 
         $OUStructures=@()
         $AppParts | % {
@@ -642,6 +648,10 @@ Switch ($TestName)
 
             }
         writeoutput -Header OUTree -output $OUStructures
+
+
+        
+
 
 
 
@@ -790,7 +800,7 @@ Function CreateHTMLReport () {
     
     # Create Replication area
 
-        $Modules="HostName","ReplicaPartners","SiteLinks","Sites"
+        $Modules="HostName","ReplicaPartners","SiteLinks","Sites","replsum","showrepl"
         $AreaTitle="@Replication Configuration"
         $ReplicationArea=CreateHTMLReportArea -Modules $Modules -Title $AreaTitle
     
